@@ -4,6 +4,7 @@ step1
 
 go to https://makecode.microbit.org/
 ```
+https://makecode.microbit.org/
 
 ```
 step2
