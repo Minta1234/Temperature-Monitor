@@ -1,12 +1,15 @@
 let temp = 0
+// เริ่มใช้งาน Bluetooth UART
 bluetooth.startUartService()
-basic.forever(function on_forever() {
-    
+// ตั้งค่า Serial USB สำหรับเชื่อมกับคอมพิวเตอร์
+serial.setBaudRate(BaudRate.BaudRate115200)
+basic.forever(function () {
     temp = input.temperature()
-    
-    serial.writeLine("USB Temp:" + ("" + ("" + temp)))
-    bluetooth.uartWriteLine("BLE Temp:" + ("" + ("" + temp)))
-    
+    // ส่งค่าอุณหภูมิผ่าน USB Serial
+    serial.writeLine("USB Temp:" + temp)
+    // ส่งค่าอุณหภูมิผ่าน Bluetooth UART
+    bluetooth.uartWriteLine("BLE Temp:" + temp)
+    // แสดงผลบนหน้าจอ LED ตามอุณหภูมิ
     if (temp <= 25) {
         basic.showLeds(`
             . . . . .
@@ -26,7 +29,6 @@ basic.forever(function on_forever() {
     } else {
         basic.clearScreen()
     }
-    
-
-    basic.pause(500)
+    // หน่วงเวลาเพื่อไม่ส่งข้อมูลถี่เกินไป
+    basic.pause(100)
 })
