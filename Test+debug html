@@ -2,33 +2,31 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>micro:bit Temp Monitor</title>
+  <title>micro:bit Debug + Temp Monitor</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
       margin: 0;
-      padding: 0;
       font-family: sans-serif;
       background: #5ddb9a;
       display: flex;
       flex-direction: column;
       align-items: center;
     }
-    h1 { color: white; margin-top: 20px; }
-    .temp-block {
-      background: #90e2f1dd;
-      border: 2px solid black;
-      border-radius: 10px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-      margin: 20px;
+    h1 { color: white; margin: 20px; }
+    .block {
+      background: #fff;
       padding: 20px;
+      margin: 15px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px #0004;
       width: 90%;
       max-width: 600px;
     }
     .temp-value { font-size: 2.5em; color: #eb7a08; }
     .status { margin-top: 10px; }
     button {
-      margin: 10px 5px;
+      margin: 10px;
       padding: 10px 20px;
       font-size: 1em;
       background: #21f10a;
@@ -39,21 +37,26 @@
     button:hover { background: #3607f1dc; color: white; }
     canvas {
       margin-top: 20px;
-      background: white;
-      border-radius: 8px;
+      border-radius: 10px;
+      background: #eee;
     }
-    .contact {
-      color: white;
-      margin: 30px;
-      text-align: center;
+    #logBox {
+      background: #000;
+      color: #0f0;
+      font-family: monospace;
+      padding: 10px;
+      height: 200px;
+      overflow-y: scroll;
+      font-size: 0.9em;
+      white-space: pre-wrap;
     }
   </style>
 </head>
 <body>
 
-<h1>🌡️ micro:bit Temp Monitor</h1>
+<h1>🛠️ micro:bit Debug + Temp Monitor</h1>
 
-<div class="temp-block">
+<div class="block">
   <h2>🔌 USB</h2>
   <div id="usb-temp" class="temp-value">-- °C</div>
   <div id="usb-status" class="status">Disconnected</div>
@@ -61,7 +64,7 @@
   <canvas id="usbChart" width="500" height="200"></canvas>
 </div>
 
-<div class="temp-block">
+<div class="block">
   <h2>📡 BLE</h2>
   <div id="ble-temp" class="temp-value">-- °C</div>
   <div id="ble-status" class="status">Disconnected</div>
@@ -69,26 +72,16 @@
   <canvas id="bleChart" width="500" height="200"></canvas>
 </div>
 
-<div>
-  <button onclick="toggleDebug()">📋 Debug</button>
-</div>
-
-<div class="contact">
-  <p>Email: kawinphopkodsombat@gmail.com</p>
+<div class="block">
+  <h2>📋 Debug Log</h2>
+  <div id="logBox">[LOG INIT]</div>
+  <button onclick="saveLogToFile()">📥 Save Log</button>
 </div>
 
 <script>
   const MAX_POINTS = 30;
-  let debugEnabled = true;
-
-  function toggleDebug() {
-    debugEnabled = !debugEnabled;
-    alert(`Debug Mode ${debugEnabled ? "ON" : "OFF"}`);
-  }
-
-  function log(...args) {
-    if (debugEnabled) console.log(...args);
-  }
+  const usbChart = createChart("usbChart", "USB Temp (°C)");
+  const bleChart = createChart("bleChart", "BLE Temp (°C)");
 
   function createChart(canvasId, label) {
     const ctx = document.getElementById(canvasId).getContext('2d');
@@ -110,7 +103,8 @@
         scales: {
           x: { display: false },
           y: {
-            min: 1, max: 50,
+            min: 1,
+            max: 50,
             ticks: {
               stepSize: 5,
               callback: v => `${v}°C`
@@ -125,9 +119,6 @@
     });
   }
 
-  const usbChart = createChart("usbChart", "USB Temp (°C)");
-  const bleChart = createChart("bleChart", "BLE Temp (°C)");
-
   function updateChart(chart, temp) {
     const now = new Date().toLocaleTimeString();
     chart.data.labels.push(now);
@@ -139,6 +130,28 @@
     chart.update();
   }
 
+  function appendLog(message) {
+    const logBox = document.getElementById('logBox');
+    logBox.textContent += "\n" + message;
+    logBox.scrollTop = logBox.scrollHeight;
+  }
+
+  function saveLogToFile() {
+    const logText = document.getElementById('logBox').textContent;
+    const blob = new Blob([logText], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `microbit-log-${new Date().toISOString().replace(/[:.]/g, '-')}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    appendLog('[SYSTEM] Log saved to file.');
+  }
+
   async function connectUSB() {
     const usbStatus = document.getElementById('usb-status');
     const usbTemp = document.getElementById('usb-temp');
@@ -147,9 +160,11 @@
       const port = await navigator.serial.requestPort({
         filters: [{ usbVendorId: 0x0D28 }]
       });
-      await port.open({ baudRate: 115200 });
 
+      await port.open({ baudRate: 115200 });
       usbStatus.textContent = 'Connected';
+      appendLog('[USB] Port opened');
+
       const textDecoder = new TextDecoderStream();
       port.readable.pipeTo(textDecoder.writable);
       const reader = textDecoder.readable.getReader();
@@ -157,21 +172,19 @@
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
-        if (!value) continue;
+        if (value) {
+          appendLog('[USB] ' + value.trim());
 
-        log("[USB]", value);
-
-        if (value.startsWith("USB Temp:")) {
-          const temp = parseFloat(value.split(":")[1]);
-          usbTemp.textContent = temp.toFixed(2) + " °C";
-          updateChart(usbChart, temp);
-        } else if (value.includes("m l")) {
-          log("[USB Debug]", value);
+          if (value.startsWith("USB Temp:")) {
+            const temp = parseFloat(value.split(":")[1]);
+            usbTemp.textContent = temp.toFixed(2) + " °C";
+            updateChart(usbChart, temp);
+          }
         }
       }
     } catch (err) {
-      console.error(err);
       usbStatus.textContent = 'Error: ' + err.message;
+      appendLog('[USB] ERROR: ' + err.message);
     }
   }
 
@@ -181,11 +194,13 @@
 
     try {
       const device = await navigator.bluetooth.requestDevice({
-        acceptAllDevices: true,
+        filters: [{ namePrefix: 'BBC micro:bit' }],
         optionalServices: ['6e400001-b5a3-f393-e0a9-e50e24dcca9e']
       });
 
       bleStatus.textContent = 'Connecting...';
+      appendLog('[BLE] Device selected');
+
       const server = await device.gatt.connect();
       const service = await server.getPrimaryService('6e400001-b5a3-f393-e0a9-e50e24dcca9e');
       const characteristic = await service.getCharacteristic('6e400003-b5a3-f393-e0a9-e50e24dcca9e');
@@ -193,21 +208,20 @@
       await characteristic.startNotifications();
       characteristic.addEventListener('characteristicvaluechanged', event => {
         const value = new TextDecoder().decode(event.target.value);
-        log("[BLE]", value);
+        appendLog('[BLE] ' + value.trim());
 
         if (value.startsWith("BLE Temp:")) {
           const temp = parseFloat(value.split(":")[1]);
           bleTemp.textContent = temp.toFixed(2) + " °C";
           updateChart(bleChart, temp);
-        } else if (value.includes("m l")) {
-          log("[BLE Debug]", value);
         }
       });
 
       bleStatus.textContent = 'Connected';
+      appendLog('[BLE] Connected and listening');
     } catch (err) {
-      console.error(err);
       bleStatus.textContent = 'Error: ' + err.message;
+      appendLog('[BLE] ERROR: ' + err.message);
     }
   }
 </script>
