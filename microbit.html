@@ -1,9 +1,8 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Temperature Monitor (USB + BLE)</title>
+  <title>Temperature Monitor (micro:bit Only)</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     html, body {
@@ -62,6 +61,7 @@
       background-color: #ffffff;
       border-radius: 8px;
     }
+
     .contact {
       margin-top: 30px;
       text-align: center;
@@ -74,7 +74,7 @@
   <h1>🌡️ Temperature Monitor</h1>
 
   <div class="temp-block">
-    <h2>🔌 USB Serial</h2>
+    <h2>🔌 micro:bit USB</h2>
     <div id="usb-temp" class="temp-value">-- °C</div>
     <div id="usb-status" class="status">Disconnected</div>
     <button onclick="connectUSB()">Connect USB</button>
@@ -82,21 +82,20 @@
   </div>
 
   <div class="temp-block">
-    <h2>📡 Bluetooth (BLE)</h2>
+    <h2>📡 micro:bit BLE</h2>
     <div id="ble-temp" class="temp-value">-- °C</div>
     <div id="ble-status" class="status">Disconnected</div>
     <button onclick="connectBLE()">Connect BLE</button>
     <canvas id="bleChart" width="500" height="200"></canvas>
-
-  </div class="contact">
-            <h2>Contact ME!</h2>
-            <p>Email: kawinphopkodsombat@gmail.com</p>
-            <section>
-              <div class="contact-info">
-                <p>For any issues or suggestions, feel free to reach out!</p>
-              </div>
   </div>
-            </section>
+
+  <div class="contact">
+    <h2>Contact ME!</h2>
+    <p>Email: kawinphopkodsombat@gmail.com</p>
+    <div class="contact-info">
+      <p>For any issues or suggestions, feel free to reach out!</p>
+    </div>
+  </div>
 
   <script>
     const MAX_POINTS = 30;
@@ -151,16 +150,19 @@
       chart.update();
     }
 
-    // ===== USB Serial =====
+    // === USB (Filtered for micro:bit only) ===
     async function connectUSB() {
       const usbStatus = document.getElementById('usb-status');
       const usbTemp = document.getElementById('usb-temp');
 
       try {
-        const port = await navigator.serial.requestPort();
-        await port.open({ baudRate: 115200 });
+        const port = await navigator.serial.requestPort({
+          filters: [{ usbVendorId: 0x0D28 }]  // micro:bit Vendor ID
+        });
 
+        await port.open({ baudRate: 115200 });
         usbStatus.textContent = 'Connected';
+
         const textDecoder = new TextDecoderStream();
         const readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
         const reader = textDecoder.readable.getReader();
@@ -180,18 +182,19 @@
       }
     }
 
-    // ===== Bluetooth BLE UART =====
+    // === BLE (Filtered for micro:bit only) ===
     async function connectBLE() {
       const bleStatus = document.getElementById('ble-status');
       const bleTemp = document.getElementById('ble-temp');
 
       try {
         const device = await navigator.bluetooth.requestDevice({
-          filters: [{ namePrefix: 'ESP32' }],
+          filters: [{ namePrefix: 'BBC micro:bit' }],
           optionalServices: ['6e400001-b5a3-f393-e0a9-e50e24dcca9e']
         });
 
         bleStatus.textContent = 'Connecting...';
+
         const server = await device.gatt.connect();
         const service = await server.getPrimaryService('6e400001-b5a3-f393-e0a9-e50e24dcca9e');
         const characteristic = await service.getCharacteristic('6e400003-b5a3-f393-e0a9-e50e24dcca9e');
@@ -213,9 +216,6 @@
       }
     }
   </script>
+
 </body>
 </html>
-<!DOCTYPE html>
-<html lang="en">
-  <HTML>
-    </style>
