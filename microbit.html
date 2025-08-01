@@ -67,141 +67,141 @@ canvas {
 
   </style>  
 </head>  
-<body>    <h1>🌡️ Temperature Monitor</h1>    <div class="temp-block">  
-    <h2>🔌 micro:bit USB</h2>  
-    <div id="usb-temp" class="temp-value">-- °C</div>  
-    <div id="usb-status" class="status">Disconnected</div>  
-    <button onclick="connectUSB()">Connect USB</button>  
-    <canvas id="usbChart" width="500" height="200"></canvas>  
-  </div>    <div class="temp-block">  
-    <h2>📡 micro:bit BLE</h2>  
-    <div id="ble-temp" class="temp-value">-- °C</div>  
-    <div id="ble-status" class="status">Disconnected</div>  
-    <button onclick="connectBLE()">Connect BLE</button>  
-    <canvas id="bleChart" width="500" height="200"></canvas>  
-  </div>    <div class="contact">  
-    <h2>Contact ME!</h2>  
-    <p>Email: kawinphopkodsombat@gmail.com</p>  
-    <div class="contact-info">  
-      <p>For any issues or suggestions, feel free to reach out!</p>  
-    </div>  
-  </div>    <script>  
-    const MAX_POINTS = 30;  
+<body>  <h1>🌡️ Temperature Monitor</h1>  <div class="temp-block">  
+  <h2>🔌 micro:bit USB</h2>  
+  <div id="usb-temp" class="temp-value">-- °C</div>  
+  <div id="usb-status" class="status">Disconnected</div>  
+  <button onclick="connectUSB()">Connect USB</button>  
+  <canvas id="usbChart" width="500" height="200"></canvas>  
+</div>  <div class="temp-block">  
+  <h2>📡 micro:bit BLE</h2>  
+  <div id="ble-temp" class="temp-value">-- °C</div>  
+  <div id="ble-status" class="status">Disconnected</div>  
+  <button onclick="connectBLE()">Connect BLE</button>  
+  <canvas id="bleChart" width="500" height="200"></canvas>  
+</div>  <div class="contact">  
+  <h2>Contact ME!</h2>  
+  <p>Email: kawinphopkodsombat@gmail.com</p>  
+  <div class="contact-info">  
+    <p>For any issues or suggestions, feel free to reach out!</p>  
+  </div>  
+</div>  <script>  
+  const MAX_POINTS = 30;  
   
-    function createChart(canvasId, label) {  
-      const ctx = document.getElementById(canvasId).getContext('2d');  
-      return new Chart(ctx, {  
-        type: 'line',  
-        data: {  
-          labels: [],  
-          datasets: [{  
-            label: label,  
-            data: [],  
-            borderColor: '#eb7a08',  
-            backgroundColor: 'rgba(235, 122, 8, 0.2)',  
-            tension: 0.3  
-          }]  
-        },  
-        options: {  
-          responsive: true,  
-          animation: false,  
-          scales: {  
-            x: { display: false },  
-            y: {  
-              min: 1,  
-              max: 50,  
-              ticks: {  
-                stepSize: 5,  
-                callback: (value) => `${value}°C`  
-              },  
-              title: {  
-                display: true,  
-                text: "Temperature (°C)"  
-              }  
+  function createChart(canvasId, label) {  
+    const ctx = document.getElementById(canvasId).getContext('2d');  
+    return new Chart(ctx, {  
+      type: 'line',  
+      data: {  
+        labels: [],  
+        datasets: [{  
+          label: label,  
+          data: [],  
+          borderColor: '#eb7a08',  
+          backgroundColor: 'rgba(235, 122, 8, 0.2)',  
+          tension: 0.3  
+        }]  
+      },  
+      options: {  
+        responsive: true,  
+        animation: false,  
+        scales: {  
+          x: { display: false },  
+          y: {  
+            min: 1,  
+            max: 50,  
+            ticks: {  
+              stepSize: 5,  
+              callback: (value) => `${value}°C`  
+            },  
+            title: {  
+              display: true,  
+              text: "Temperature (°C)"  
             }  
           }  
         }  
+      }  
+    });  
+  }  
+  
+  const usbChart = createChart("usbChart", "USB Temp (°C)");  
+  const bleChart = createChart("bleChart", "BLE Temp (°C)");  
+  
+  function updateChart(chart, temp) {  
+    const now = new Date().toLocaleTimeString();  
+    chart.data.labels.push(now);  
+    chart.data.datasets[0].data.push(temp);  
+    if (chart.data.labels.length > MAX_POINTS) {  
+      chart.data.labels.shift();  
+      chart.data.datasets[0].data.shift();  
+    }  
+    chart.update();  
+  }  
+  
+  // === USB: micro:bit only ===  
+  async function connectUSB() {  
+    const usbStatus = document.getElementById('usb-status');  
+    const usbTemp = document.getElementById('usb-temp');  
+  
+    try {  
+      const port = await navigator.serial.requestPort({  
+        filters: [{ usbVendorId: 0x0D28 }]  
       });  
-    }  
   
-    const usbChart = createChart("usbChart", "USB Temp (°C)");  
-    const bleChart = createChart("bleChart", "BLE Temp (°C)");  
+      await port.open({ baudRate: 115200 });  
+      usbStatus.textContent = 'Connected';  
   
-    function updateChart(chart, temp) {  
-      const now = new Date().toLocaleTimeString();  
-      chart.data.labels.push(now);  
-      chart.data.datasets[0].data.push(temp);  
-      if (chart.data.labels.length > MAX_POINTS) {  
-        chart.data.labels.shift();  
-        chart.data.datasets[0].data.shift();  
-      }  
-      chart.update();  
-    }  
+      const textDecoder = new TextDecoderStream();  
+      port.readable.pipeTo(textDecoder.writable);  
+      const reader = textDecoder.readable.getReader();  
   
-    // === USB (Filtered for micro:bit only) ===  
-    async function connectUSB() {  
-      const usbStatus = document.getElementById('usb-status');  
-      const usbTemp = document.getElementById('usb-temp');  
-  
-      try {  
-        const port = await navigator.serial.requestPort({  
-          filters: [{ usbVendorId: 0x0D28 }]  // micro:bit Vendor ID  
-        });  
-  
-        await port.open({ baudRate: 115200 });  
-        usbStatus.textContent = 'Connected';  
-  
-        const textDecoder = new TextDecoderStream();  
-        const readableStreamClosed = port.readable.pipeTo(textDecoder.writable);  
-        const reader = textDecoder.readable.getReader();  
-  
-        while (true) {  
-          const { value, done } = await reader.read();  
-          if (done) break;  
-          if (value && value.startsWith("USB Temp:")) {  
-            const temp = parseFloat(value.split(":")[1].trim());  
-            usbTemp.textContent = temp.toFixed(2) + " °C";  
-            updateChart(usbChart, temp);  
-          }  
+      while (true) {  
+        const { value, done } = await reader.read();  
+        if (done) break;  
+        if (value && value.startsWith("USB Temp:")) {  
+          const temp = parseFloat(value.split(":")[1].trim());  
+          usbTemp.textContent = temp.toFixed(2) + " °C";  
+          updateChart(usbChart, temp);  
         }  
-      } catch (err) {  
-        console.error(err);  
-        usbStatus.textContent = 'Error: ' + err.message;  
       }  
+    } catch (err) {  
+      console.error(err);  
+      usbStatus.textContent = 'Error: ' + err.message;  
     }  
+  }  
   
-    // === BLE (Filtered for micro:bit only) ===  
-    async function connectBLE() {  
-      const bleStatus = document.getElementById('ble-status');  
-      const bleTemp = document.getElementById('ble-temp');  
+  // === BLE: micro:bit only ===  
+  async function connectBLE() {  
+    const bleStatus = document.getElementById('ble-status');  
+    const bleTemp = document.getElementById('ble-temp');  
   
-      try {  
-        const device = await navigator.bluetooth.requestDevice({  
-          filters: [{ namePrefix: 'BBC micro:bit' }],  
-          optionalServices: ['6e400001-b5a3-f393-e0a9-e50e24dcca9e']  
-        });  
+    try {  
+      const device = await navigator.bluetooth.requestDevice({  
+        filters: [{ namePrefix: 'BBC micro:bit' }],  
+        optionalServices: ['6e400001-b5a3-f393-e0a9-e50e24dcca9e']  
+      });  
   
-        bleStatus.textContent = 'Connecting...';  
+      bleStatus.textContent = 'Connecting...';  
   
-        const server = await device.gatt.connect();  
-        const service = await server.getPrimaryService('6e400001-b5a3-f393-e0a9-e50e24dcca9e');  
-        const characteristic = await service.getCharacteristic('6e400003-b5a3-f393-e0a9-e50e24dcca9e');  
+      const server = await device.gatt.connect();  
+      const service = await server.getPrimaryService('6e400001-b5a3-f393-e0a9-e50e24dcca9e');  
+      const characteristic = await service.getCharacteristic('6e400003-b5a3-f393-e0a9-e50e24dcca9e');  
   
-        await characteristic.startNotifications();  
-        characteristic.addEventListener('characteristicvaluechanged', event => {  
-          const value = new TextDecoder().decode(event.target.value);  
-          if (value && value.startsWith("BLE Temp:")) {  
-            const temp = parseFloat(value.split(":")[1].trim());  
-            bleTemp.textContent = temp.toFixed(2) + " °C";  
-            updateChart(bleChart, temp);  
-          }  
-        });  
+      await characteristic.startNotifications();  
+      characteristic.addEventListener('characteristicvaluechanged', event => {  
+        const value = new TextDecoder().decode(event.target.value);  
+        if (value && value.startsWith("BLE Temp:")) {  
+          const temp = parseFloat(value.split(":")[1].trim());  
+          bleTemp.textContent = temp.toFixed(2) + " °C";  
+          updateChart(bleChart, temp);  
+        }  
+      });  
   
-        bleStatus.textContent = 'Connected';  
-      } catch (err) {  
-        console.error(err);  
-        bleStatus.textContent = 'Error: ' + err.message;  
-      }  
+      bleStatus.textContent = 'Connected';  
+    } catch (err) {  
+      console.error(err);  
+      bleStatus.textContent = 'Error: ' + err.message;  
     }  
-  </script>  </body>  
+  }  
+</script>  </body>  
 </html>  
