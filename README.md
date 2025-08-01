@@ -36,8 +36,7 @@ basic.forever(function on_forever() {
     basic.pause(500)
 })
 '''
-
-
+'''
 python
 '''
 temp = 0
