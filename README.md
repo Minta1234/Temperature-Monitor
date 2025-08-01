@@ -1,4 +1,3 @@
 # Temperature-Monitor
 use
-
-https://makecode.org
+https://makecode.microbit.org/
