@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>micro:bit Debug + Temp Monitor</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
@@ -23,10 +23,15 @@
       width: 90%;
       max-width: 600px;
     }
-    .temp-value { font-size: 2.5em; color: #eb7a08; }
-    .status { margin-top: 10px; }
+    .temp-value {
+      font-size: 2.5em;
+      color: #eb7a08;
+    }
+    .status {
+      margin-top: 10px;
+    }
     button {
-      margin: 10px;
+      margin: 10px 5px 10px 0;
       padding: 10px 20px;
       font-size: 1em;
       background: #21f10a;
@@ -34,13 +39,16 @@
       border-radius: 5px;
       cursor: pointer;
     }
-    button:hover { background: #3607f1dc; color: white; }
+    button:hover {
+      background: #3607f1dc;
+      color: white;
+    }
     canvas {
       margin-top: 20px;
       border-radius: 10px;
       background: #eee;
     }
-    #logBox {
+    #logBox, #activityLogBox {
       background: #000;
       color: #0f0;
       font-family: monospace;
@@ -49,6 +57,7 @@
       overflow-y: scroll;
       font-size: 0.9em;
       white-space: pre-wrap;
+      margin-bottom: 5px;
     }
   </style>
 </head>
@@ -57,7 +66,7 @@
 <h1>🛠️ micro:bit Debug + Temp Monitor</h1>
 
 <div class="block">
-  <h2>🔌 USB</h2>
+  <h2>🔌 USB (Any Device)</h2>
   <div id="usb-temp" class="temp-value">-- °C</div>
   <div id="usb-status" class="status">Disconnected</div>
   <button onclick="connectUSB()">Connect USB</button>
@@ -65,7 +74,7 @@
 </div>
 
 <div class="block">
-  <h2>📡 BLE</h2>
+  <h2>📡 BLE (BBC micro:bit only)</h2>
   <div id="ble-temp" class="temp-value">-- °C</div>
   <div id="ble-status" class="status">Disconnected</div>
   <button onclick="connectBLE()">Connect BLE</button>
@@ -73,15 +82,25 @@
 </div>
 
 <div class="block">
-  <h2>📋 Debug Log</h2>
+  <h2>📋 Debug Log (ข้อมูล sensor)</h2>
   <div id="logBox">[LOG INIT]</div>
-  <button onclick="saveLogToFile()">📥 Save Log</button>
+  <button onclick="saveDebugLog()">📥 Save Debug Log</button>
+</div>
+
+<div class="block">
+  <h2>⚙️ Activity Log (กิจกรรมเบื้องหลัง)</h2>
+  <div id="activityLogBox">[ACTIVITY LOG INIT]</div>
+  <button onclick="saveActivityLog()">📥 Save Activity Log</button>
 </div>
 
 <script>
   const MAX_POINTS = 30;
   const usbChart = createChart("usbChart", "USB Temp (°C)");
   const bleChart = createChart("bleChart", "BLE Temp (°C)");
+
+  // Log buffers
+  let debugLogBuffer = [];
+  let activityLogBuffer = [];
 
   function createChart(canvasId, label) {
     const ctx = document.getElementById(canvasId).getContext('2d');
@@ -130,40 +149,66 @@
     chart.update();
   }
 
-  function appendLog(message) {
+  // Append debug log (sensor data)
+  function appendDebugLog(message) {
     const logBox = document.getElementById('logBox');
-    logBox.textContent += "\n" + message;
+    const timeStamped = `[${new Date().toLocaleTimeString()}] ${message}`;
+    debugLogBuffer.push(timeStamped);
+    logBox.textContent += "\n" + timeStamped;
     logBox.scrollTop = logBox.scrollHeight;
   }
 
-  function saveLogToFile() {
-    const logText = document.getElementById('logBox').textContent;
-    const blob = new Blob([logText], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `microbit-log-${new Date().toISOString().replace(/[:.]/g, '-')}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    appendLog('[SYSTEM] Log saved to file.');
+  // Append activity log (background events)
+  function appendActivityLog(message) {
+    const activityLogBox = document.getElementById('activityLogBox');
+    const timeStamped = `[${new Date().toLocaleTimeString()}] ${message}`;
+    activityLogBuffer.push(timeStamped);
+    activityLogBox.textContent += "\n" + timeStamped;
+    activityLogBox.scrollTop = activityLogBox.scrollHeight;
   }
 
+  // Save debug log to file
+  function saveDebugLog() {
+    const blob = new Blob([debugLogBuffer.join('\n')], {type: 'text/plain'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `debug-log-${new Date().toISOString().replace(/[:.]/g,'-')}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    appendActivityLog('[SYSTEM] Debug log saved to file.');
+  }
+
+  // Save activity log to file
+  function saveActivityLog() {
+    const blob = new Blob([activityLogBuffer.join('\n')], {type: 'text/plain'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `activity-log-${new Date().toISOString().replace(/[:.]/g,'-')}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    appendActivityLog('[SYSTEM] Activity log saved to file.');
+  }
+
+  // USB connect function
   async function connectUSB() {
     const usbStatus = document.getElementById('usb-status');
     const usbTemp = document.getElementById('usb-temp');
+    activityLogBuffer.push(`[${new Date().toLocaleTimeString()}] [USB] Requesting port...`);
+    appendActivityLog('[USB] Requesting port...');
+    usbStatus.textContent = 'Connecting...';
+    usbTemp.textContent = '-- °C';
 
     try {
-      const port = await navigator.serial.requestPort({
-        filters: [{ usbVendorId: 0x0D28 }]
-      });
-
+      const port = await navigator.serial.requestPort();
       await port.open({ baudRate: 115200 });
       usbStatus.textContent = 'Connected';
-      appendLog('[USB] Port opened');
+      appendActivityLog('[USB] Port opened');
 
       const textDecoder = new TextDecoderStream();
       port.readable.pipeTo(textDecoder.writable);
@@ -171,10 +216,12 @@
 
       while (true) {
         const { value, done } = await reader.read();
-        if (done) break;
+        if (done) {
+          appendActivityLog('[USB] Reader closed');
+          break;
+        }
         if (value) {
-          appendLog('[USB] ' + value.trim());
-
+          appendDebugLog('[USB] ' + value.trim());
           if (value.startsWith("USB Temp:")) {
             const temp = parseFloat(value.split(":")[1]);
             usbTemp.textContent = temp.toFixed(2) + " °C";
@@ -184,13 +231,17 @@
       }
     } catch (err) {
       usbStatus.textContent = 'Error: ' + err.message;
-      appendLog('[USB] ERROR: ' + err.message);
+      appendActivityLog('[USB] ERROR: ' + err.message);
     }
   }
 
+  // BLE connect function
   async function connectBLE() {
     const bleStatus = document.getElementById('ble-status');
     const bleTemp = document.getElementById('ble-temp');
+
+    appendActivityLog('[BLE] Requesting device...');
+    bleStatus.textContent = 'Connecting...';
 
     try {
       const device = await navigator.bluetooth.requestDevice({
@@ -198,9 +249,7 @@
         optionalServices: ['6e400001-b5a3-f393-e0a9-e50e24dcca9e']
       });
 
-      bleStatus.textContent = 'Connecting...';
-      appendLog('[BLE] Device selected');
-
+      appendActivityLog('[BLE] Device selected: ' + device.name);
       const server = await device.gatt.connect();
       const service = await server.getPrimaryService('6e400001-b5a3-f393-e0a9-e50e24dcca9e');
       const characteristic = await service.getCharacteristic('6e400003-b5a3-f393-e0a9-e50e24dcca9e');
@@ -208,7 +257,7 @@
       await characteristic.startNotifications();
       characteristic.addEventListener('characteristicvaluechanged', event => {
         const value = new TextDecoder().decode(event.target.value);
-        appendLog('[BLE] ' + value.trim());
+        appendDebugLog('[BLE] ' + value.trim());
 
         if (value.startsWith("BLE Temp:")) {
           const temp = parseFloat(value.split(":")[1]);
@@ -218,13 +267,12 @@
       });
 
       bleStatus.textContent = 'Connected';
-      appendLog('[BLE] Connected and listening');
+      appendActivityLog('[BLE] Connected and listening');
     } catch (err) {
       bleStatus.textContent = 'Error: ' + err.message;
-      appendLog('[BLE] ERROR: ' + err.message);
+      appendActivityLog('[BLE] ERROR: ' + err.message);
     }
   }
 </script>
-
 </body>
 </html>
