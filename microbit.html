@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Temperature Monitor (micro:bit Only)</title>
+  <title>Temperature Monitor (Universal BLE)</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     html, body {
@@ -82,7 +82,7 @@
   </div>
 
   <div class="temp-block">
-    <h2>📡 micro:bit BLE</h2>
+    <h2>📡 BLE Device</h2>
     <div id="ble-temp" class="temp-value">-- °C</div>
     <div id="ble-status" class="status">Disconnected</div>
     <button onclick="connectBLE()">Connect BLE</button>
@@ -150,7 +150,7 @@
       chart.update();
     }
 
-    // === USB (Filtered for micro:bit only) ===
+    // === USB (สำหรับ micro:bit เท่านั้น) ===
     async function connectUSB() {
       const usbStatus = document.getElementById('usb-status');
       const usbTemp = document.getElementById('usb-temp');
@@ -182,28 +182,44 @@
       }
     }
 
-    // === BLE (Filtered for micro:bit only) ===
+    // === BLE (ทุกอุปกรณ์ที่รองรับ GATT) ===
     async function connectBLE() {
       const bleStatus = document.getElementById('ble-status');
       const bleTemp = document.getElementById('ble-temp');
 
       try {
         const device = await navigator.bluetooth.requestDevice({
-          filters: [{ namePrefix: 'BBC micro:bit' }],
-          optionalServices: ['6e400001-b5a3-f393-e0a9-e50e24dcca9e']
+          acceptAllDevices: true,
+          optionalServices: ['battery_service', 'device_information']
         });
 
         bleStatus.textContent = 'Connecting...';
-
         const server = await device.gatt.connect();
-        const service = await server.getPrimaryService('6e400001-b5a3-f393-e0a9-e50e24dcca9e');
-        const characteristic = await service.getCharacteristic('6e400003-b5a3-f393-e0a9-e50e24dcca9e');
+        const services = await server.getPrimaryServices();
 
-        await characteristic.startNotifications();
-        characteristic.addEventListener('characteristicvaluechanged', event => {
+        let targetCharacteristic = null;
+
+        for (const service of services) {
+          const characteristics = await service.getCharacteristics();
+          for (const char of characteristics) {
+            if (char.properties.notify || char.properties.read) {
+              targetCharacteristic = char;
+              break;
+            }
+          }
+          if (targetCharacteristic) break;
+        }
+
+        if (!targetCharacteristic) {
+          bleStatus.textContent = 'No readable/notifiable characteristic found';
+          return;
+        }
+
+        await targetCharacteristic.startNotifications();
+        targetCharacteristic.addEventListener('characteristicvaluechanged', event => {
           const value = new TextDecoder().decode(event.target.value);
-          if (value && value.startsWith("BLE Temp:")) {
-            const temp = parseFloat(value.split(":")[1].trim());
+          const temp = parseFloat(value.replace(/[^\d.]/g, ''));
+          if (!isNaN(temp)) {
             bleTemp.textContent = temp.toFixed(2) + " °C";
             updateChart(bleChart, temp);
           }
@@ -216,6 +232,5 @@
       }
     }
   </script>
-
 </body>
 </html>
