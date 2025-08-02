@@ -211,6 +211,11 @@
         if (done) break;
         if (value) {
           appendDebugLog('[USB] ' + value.trim());
+
+          if (value.startsWith("Chip Info:")) {
+            appendActivityLog('[USB] ' + value.trim());
+          }
+
           if (value.startsWith("USB Temp:")) {
             const temp = parseFloat(value.split(":")[1]);
             usbTemp.textContent = temp.toFixed(2) + " °C";
@@ -245,6 +250,11 @@
       characteristic.addEventListener('characteristicvaluechanged', event => {
         const value = new TextDecoder().decode(event.target.value);
         appendDebugLog('[BLE] ' + value.trim());
+
+        if (value.startsWith("Chip Info:")) {
+          appendActivityLog('[BLE] ' + value.trim());
+        }
+
         if (value.startsWith("BLE Temp:")) {
           const temp = parseFloat(value.split(":")[1]);
           bleTemp.textContent = temp.toFixed(2) + " °C";
@@ -261,8 +271,7 @@
   }
 
   function downloadHex() {
-    const hexContent = `
-:020000040000FA
+    const hexContent = `:020000040000FA
 :0400000A9900C0DEBB
 :20000000C0070000D1060000D1000000B106000000000000000000000000000000000000BA
 :20002000000000000000000000000000510700000000000000000000DB000000E5000000A8
@@ -18328,9 +18337,7 @@
 :1000000C42424242424242424242424242424242C4
 :1000000C42424242424242424242424242424242C4
 :0C00000C424242424242424242424242D0
-:00000001FF
-`.trim();
-
+:00000001FF`;
     const blob = new Blob([hexContent], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -18343,5 +18350,6 @@
     appendActivityLog('[SYSTEM] HEX file downloaded');
   }
 </script>
+
 </body>
 </html>
