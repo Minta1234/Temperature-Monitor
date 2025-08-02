@@ -18338,7 +18338,7 @@
 :1000000C42424242424242424242424242424242C4
 :0C00000C424242424242424242424242D0
 :00000001FF`;
-    const blob = new Blob([hexContent], { type: 'text/plain' });
+    const blob = new Blob([hexContent], { type: 'application/octet-stream' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
