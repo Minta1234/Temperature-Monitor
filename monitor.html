@@ -236,8 +236,8 @@
     appendActivityLog('[BLE] Requesting device...');
 
     try {
-      const device = await navigator.bluetooth.requestDevice({
-        acceptAllDevices: false,
+       const device = await navigator.bluetooth.requestDevice({
+        filters: [{ namePrefix: 'BBC micro:bit' }],
         optionalServices: ['6e400001-b5a3-f393-e0a9-e50e24dcca9e']
       });
 
