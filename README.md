@@ -15,6 +15,6 @@ place .js code or .py file in makecode or place .hex file in folder microbit
 ```
 step3
 
-run HTML ffile
+run monitor.HTML ffile
 ```
 
