@@ -1,277 +1,246 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>micro:bit Debug + Temp Monitor</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    body {
-      margin: 0;
-      font-family: sans-serif;
-      background: #5ddb9a;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-    h1 { color: white; margin: 20px; }
-    .block {
-      background: #fff;
-      padding: 20px;
-      margin: 15px;
-      border-radius: 10px;
-      box-shadow: 0 0 10px #0004;
-      width: 90%;
-      max-width: 600px;
-    }
-    .temp-value { font-size: 2.5em; color: #eb7a08; }
-    .status { margin-top: 10px; }
-    button {
-      margin: 10px 5px 10px 0;
-      padding: 10px 20px;
-      font-size: 1em;
-      background: #21f10a;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-    button:hover {
-      background: #3607f1dc;
-      color: white;
-    }
-    canvas {
-      margin-top: 20px;
-      border-radius: 10px;
-      background: #eee;
-    }
-    #logBox, #activityLogBox {
-      background: #000;
-      color: #0f0;
-      font-family: monospace;
-      padding: 10px;
-      height: 200px;
-      overflow-y: scroll;
-      font-size: 0.9em;
-      white-space: pre-wrap;
-      margin-bottom: 5px;
-    }
-  </style>
+<meta charset="UTF-8" />
+<title>micro:bit Debug + Temp Monitor</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+body {
+  margin: 0;
+  font-family: sans-serif;
+  background: #5ddb9a;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+h1 { color: white; margin: 20px; }
+.block {
+  background: #fff;
+  padding: 20px;
+  margin: 15px;
+  border-radius: 10px;
+  box-shadow: 0 0 10px #0004;
+  width: 90%;
+  max-width: 600px;
+}
+.temp-value { font-size: 2.5em; color: #eb7a08; }
+.status { margin-top: 10px; }
+button {
+  margin: 10px 5px 10px 0;
+  padding: 10px 20px;
+  font-size: 1em;
+  background: #21f10a;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+button:hover {
+  background: #3607f1dc;
+  color: white;
+}
+canvas {
+  margin-top: 20px;
+  border-radius: 10px;
+  background: #eee;
+}
+#logBox, #activityLogBox {
+  background: #000;
+  color: #0f0;
+  font-family: monospace;
+  padding: 10px;
+  height: 200px;
+  overflow-y: scroll;
+  font-size: 0.9em;
+  white-space: pre-wrap;
+  margin-bottom: 5px;
+}
+</style>
 </head>
 <body>
 
 <h1>🛠️ micro:bit Debug + Temp Monitor</h1>
 
 <div class="block">
-  <h2>🔌 USB (Any Device)</h2>
-  <div id="usb-temp" class="temp-value">-- °C</div>
-  <div id="usb-status" class="status">Disconnected</div>
-  <button onclick="connectUSB()">Connect USB</button>
-  <canvas id="usbChart" width="500" height="200"></canvas>
+<h2>🔌 USB (Any Device)</h2>
+<div id="usb-temp" class="temp-value">-- °C</div>
+<div id="usb-status" class="status">Disconnected</div>
+<button onclick="connectUSB()">Connect USB</button>
+<canvas id="usbChart" width="500" height="200"></canvas>
 </div>
 
 <div class="block">
-  <h2>📡 BLE (Any Device)</h2>
-  <div id="ble-temp" class="temp-value">-- °C</div>
-  <div id="ble-status" class="status">Disconnected</div>
-  <button onclick="connectBLE()">Connect BLE</button>
-  <canvas id="bleChart" width="500" height="200"></canvas>
+<h2>📡 BLE (Any Device)</h2>
+<div id="ble-temp" class="temp-value">-- °C</div>
+<div id="ble-status" class="status">Disconnected</div>
+<button onclick="connectBLE()">Connect BLE</button>
+<canvas id="bleChart" width="500" height="200"></canvas>
 </div>
 
 <div class="block">
-  <h2>📋 serial Log </h2>
-  <div id="logBox">[LOG INIT]</div>
-  <button onclick="saveDebugLog()">📥 Save serial Log</button>
+<h2>📋 Serial Log </h2>
+<div id="logBox">[LOG INIT]</div>
+<button onclick="saveDebugLog()">📥 Save serial Log</button>
 </div>
 
 <div class="block">
-  <h2>⚙️ Debug Log </h2>
-  <div id="activityLogBox">[ACTIVITY LOG INIT]</div>
-  <button onclick="saveActivityLog()">📥 Save Debug Log</button>
+<h2>⚙️ Debug Log </h2>
+<div id="activityLogBox">[ACTIVITY LOG INIT]</div>
+<button onclick="saveActivityLog()">📥 Save Debug Log</button>
 </div>
 
 <div class="block">
-  <h2>⬇️ Download .HEX File</h2>
-  <button onclick="downloadHex()">⬇️ Download HEX </button>
+<h2>⬇️ Download .HEX File</h2>
+<button onclick="downloadHex()">⬇️ Download HEX </button>
 </div>
 
 <script>
-  const MAX_POINTS = 30;
-  const usbChart = createChart("usbChart", "USB Temp (°C)");
-  const bleChart = createChart("bleChart", "BLE Temp (°C)");
+const MAX_POINTS = 30;
+const usbChart = createChart("usbChart", "USB Temp (°C)");
+const bleChart = createChart("bleChart", "BLE Temp (°C)");
 
-  let debugLogBuffer = [];
-  let activityLogBuffer = [];
+let debugLogBuffer = [];
+let activityLogBuffer = [];
 
-  function createChart(canvasId, label) {
-    const ctx = document.getElementById(canvasId).getContext('2d');
-    return new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: [],
-        datasets: [{
-          label: label,
-          data: [],
-          borderColor: '#eb7a08',
-          backgroundColor: 'rgba(235, 122, 8, 0.2)',
-          tension: 0.3
-        }]
-      },
-      options: {
-        responsive: true,
-        animation: false,
-        scales: {
-          x: { display: false },
-          y: {
-            min: 1,
-            max: 50,
-            ticks: {
-              stepSize: 5,
-              callback: v => `${v}°C`
-            },
-            title: {
-              display: true,
-              text: "Temperature (°C)"
-            }
-          }
+function createChart(canvasId, label) {
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  return new Chart(ctx, {
+    type: 'line',
+    data: { labels: [], datasets: [{ label, data: [], borderColor: '#eb7a08', backgroundColor: 'rgba(235,122,8,0.2)', tension:0.3 }] },
+    options: {
+      responsive:true,
+      animation:false,
+      scales:{
+        x:{display:false},
+        y:{min:1,max:50,ticks:{stepSize:5,callback:v=>`${v}°C`},title:{display:true,text:"Temperature (°C)"}}
+      }
+    }
+  });
+}
+
+function updateChart(chart,temp){
+  const now = new Date().toLocaleTimeString();
+  chart.data.labels.push(now);
+  chart.data.datasets[0].data.push(temp);
+  if(chart.data.labels.length>MAX_POINTS){
+    chart.data.labels.shift();
+    chart.data.datasets[0].data.shift();
+  }
+  chart.update();
+}
+
+function appendDebugLog(msg){
+  const logBox=document.getElementById('logBox');
+  const line=`[${new Date().toLocaleTimeString()}] ${msg}`;
+  debugLogBuffer.push(line);
+  logBox.textContent+="\n"+line;
+  logBox.scrollTop=logBox.scrollHeight;
+}
+
+function appendActivityLog(msg){
+  const logBox=document.getElementById('activityLogBox');
+  const line=`[${new Date().toLocaleTimeString()}] ${msg}`;
+  activityLogBuffer.push(line);
+  logBox.textContent+="\n"+line;
+  logBox.scrollTop=logBox.scrollHeight;
+}
+
+function saveDebugLog(){
+  const blob=new Blob([debugLogBuffer.join('\n')],{type:'text/plain'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`debug-log-${new Date().toISOString().replace(/[:.]/g,'-')}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  appendActivityLog('[SYSTEM] Debug log saved');
+}
+
+function saveActivityLog(){
+  const blob=new Blob([activityLogBuffer.join('\n')],{type:'text/plain'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`activity-log-${new Date().toISOString().replace(/[:.]/g,'-')}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  appendActivityLog('[SYSTEM] Activity log saved');
+}
+
+async function connectUSB(){
+  const usbStatus=document.getElementById('usb-status');
+  const usbTemp=document.getElementById('usb-temp');
+  appendActivityLog('[USB] Requesting port...');
+  usbStatus.textContent='Connecting...';
+  try{
+    const port=await navigator.serial.requestPort();
+    await port.open({baudRate:115200});
+    appendActivityLog('[USB] Port opened');
+    usbStatus.textContent='Connected';
+    const textDecoder=new TextDecoderStream();
+    port.readable.pipeTo(textDecoder.writable);
+    const reader=textDecoder.readable.getReader();
+    while(true){
+      const {value,done}=await reader.read();
+      if(done) break;
+      if(value){
+        const v=value.trim();
+        appendDebugLog('[USB] '+v);
+        if(v.startsWith("USB Temp:")){
+          const temp=parseFloat(v.split(":")[1]);
+          usbTemp.textContent=temp.toFixed(2)+" °C";
+          updateChart(usbChart,temp);
         }
+        if(v.startsWith("Chip Info:")){
+          appendActivityLog('[USB] '+v);
+        }
+      }
+    }
+  }catch(err){
+    usbStatus.textContent='Error: '+err.message;
+    appendActivityLog('[USB] ERROR: '+err.message);
+  }
+}
+
+async function connectBLE(){
+  const bleStatus=document.getElementById('ble-status');
+  const bleTemp=document.getElementById('ble-temp');
+  bleStatus.textContent='Connecting...';
+  appendActivityLog('[BLE] Requesting device...');
+  try{
+    const device=await navigator.bluetooth.requestDevice({
+      acceptAllDevices:true,
+      optionalServices:['6e400001-b5a3-f393-e0a9-e50e24dcca9e']
+    });
+    appendActivityLog('[BLE] Device selected: '+device.name);
+    const server=await device.gatt.connect();
+    const service=await server.getPrimaryService('6e400001-b5a3-f393-e0a9-e50e24dcca9e');
+    const characteristic=await service.getCharacteristic('6e400003-b5a3-f393-e0a9-e50e24dcca9e');
+    await characteristic.startNotifications();
+    characteristic.addEventListener('characteristicvaluechanged',event=>{
+      const value=new TextDecoder().decode(event.target.value).trim();
+      appendDebugLog('[BLE] '+value);
+      if(value.startsWith("BLE Temp:")){
+        const temp=parseFloat(value.split(":")[1]);
+        bleTemp.textContent=temp.toFixed(2)+" °C";
+        updateChart(bleChart,temp);
+      } else if(value.startsWith("Chip Info:")){
+        appendActivityLog('[BLE] '+value);
       }
     });
+    bleStatus.textContent='Connected';
+    appendActivityLog('[BLE] Connected and listening');
+  }catch(err){
+    bleStatus.textContent='Error: '+err.message;
+    appendActivityLog('[BLE] ERROR: '+err.message);
   }
+}
 
-  function updateChart(chart, temp) {
-    const now = new Date().toLocaleTimeString();
-    chart.data.labels.push(now);
-    chart.data.datasets[0].data.push(temp);
-    if (chart.data.labels.length > MAX_POINTS) {
-      chart.data.labels.shift();
-      chart.data.datasets[0].data.shift();
-    }
-    chart.update();
-  }
-
-  function appendDebugLog(message) {
-    const logBox = document.getElementById('logBox');
-    const line = `[${new Date().toLocaleTimeString()}] ${message}`;
-    debugLogBuffer.push(line);
-    logBox.textContent += "\n" + line;
-    logBox.scrollTop = logBox.scrollHeight;
-  }
-
-  function appendActivityLog(message) {
-    const logBox = document.getElementById('activityLogBox');
-    const line = `[${new Date().toLocaleTimeString()}] ${message}`;
-    activityLogBuffer.push(line);
-    logBox.textContent += "\n" + line;
-    logBox.scrollTop = logBox.scrollHeight;
-  }
-
-  function saveDebugLog() {
-    const blob = new Blob([debugLogBuffer.join('\n')], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `debug-log-${new Date().toISOString().replace(/[:.]/g, '-')}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    appendActivityLog('[SYSTEM] Debug log saved');
-  }
-
-  function saveActivityLog() {
-    const blob = new Blob([activityLogBuffer.join('\n')], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `activity-log-${new Date().toISOString().replace(/[:.]/g, '-')}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    appendActivityLog('[SYSTEM] Activity log saved');
-  }
-
-  async function connectUSB() {
-    const usbStatus = document.getElementById('usb-status');
-    const usbTemp = document.getElementById('usb-temp');
-    appendActivityLog('[USB] Requesting port...');
-    usbStatus.textContent = 'Connecting...';
-
-    try {
-      const port = await navigator.serial.requestPort();
-      await port.open({ baudRate: 115200 });
-      appendActivityLog('[USB] Port opened');
-      usbStatus.textContent = 'Connected';
-
-      const textDecoder = new TextDecoderStream();
-      port.readable.pipeTo(textDecoder.writable);
-      const reader = textDecoder.readable.getReader();
-
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        if (value) {
-          appendDebugLog('[USB] ' + value.trim());
-
-          if (value.startsWith("Chip Info:")) {
-            appendActivityLog('[USB] ' + value.trim());
-          }
-
-          if (value.startsWith("USB Temp:")) {
-            const temp = parseFloat(value.split(":")[1]);
-            usbTemp.textContent = temp.toFixed(2) + " °C";
-            updateChart(usbChart, temp);
-          }
-        }
-      }
-    } catch (err) {
-      usbStatus.textContent = 'Error: ' + err.message;
-      appendActivityLog('[USB] ERROR: ' + err.message);
-    }
-  }
-
-  async function connectBLE() {
-    const bleStatus = document.getElementById('ble-status');
-    const bleTemp = document.getElementById('ble-temp');
-    bleStatus.textContent = 'Connecting...';
-    appendActivityLog('[BLE] Requesting device...');
-
-    try {
-       const device = await navigator.bluetooth.requestDevice({
-        filters: [{ namePrefix: 'BBC micro:bit' }],
-        optionalServices: ['6e400001-b5a3-f393-e0a9-e50e24dcca9e']
-      });
-
-      appendActivityLog('[BLE] Device selected: ' + device.name);
-      const server = await device.gatt.connect();
-      const service = await server.getPrimaryService('6e400001-b5a3-f393-e0a9-e50e24dcca9e');
-      const characteristic = await service.getCharacteristic('6e400003-b5a3-f393-e0a9-e50e24dcca9e');
-
-      await characteristic.startNotifications();
-      characteristic.addEventListener('characteristicvaluechanged', event => {
-        const value = new TextDecoder().decode(event.target.value);
-        appendDebugLog('[BLE] ' + value.trim());
-
-        if (value.startsWith("Chip Info:")) {
-          appendActivityLog('[BLE] ' + value.trim());
-        }
-
-        if (value.startsWith("BLE Temp:")) {
-          const temp = parseFloat(value.split(":")[1]);
-          bleTemp.textContent = temp.toFixed(2) + " °C";
-          updateChart(bleChart, temp);
-        }
-      });
-
-      bleStatus.textContent = 'Connected';
-      appendActivityLog('[BLE] Connected and listening');
-    } catch (err) {
-      bleStatus.textContent = 'Error: ' + err.message;
-      appendActivityLog('[BLE] ERROR: ' + err.message);
-    }
-  }
-
-  function downloadHex() {
-    const hexContent = `:020000040000FA
+function downloadHex(){
+  const hexContent=`:020000040000FA
 :0400000A9900C0DEBB
 :20000000C0070000D1060000D1000000B106000000000000000000000000000000000000BA
 :20002000000000000000000000000000510700000000000000000000DB000000E5000000A8
@@ -18338,17 +18307,17 @@
 :1000000C42424242424242424242424242424242C4
 :0C00000C424242424242424242424242D0
 :00000001FF`;
-    const blob = new Blob([hexContent], { type: 'application/octet-stream' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'microbit-program.hex';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    appendActivityLog('[SYSTEM] HEX file downloaded');
-  }
+  const blob=new Blob([hexContent],{type:'application/octet-stream'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download='microbit-program.hex';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  appendActivityLog('[SYSTEM] HEX file downloaded');
+}
 </script>
 
 </body>
