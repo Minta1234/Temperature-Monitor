@@ -4,7 +4,7 @@ step1
 
 go to https://makecode.microbit.org/S67373-98789-32942-07158
 ```
-https://makecode.microbit.org/S67373-98789-32942-07158
+https://makecode.microbit.org/S16016-40764-09865-13358
 
 ```
 step2
