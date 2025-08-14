@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>micro:bit Debug + Temp Monitor</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<!-- Pin Chart.js v4 -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+
+<style>
+  :root{
+    --bg-start:#60e4a0; --bg-end:#47c985;
+    --card-bg:rgba(255,255,255,.82); --card-border:rgba(255,255,255,.6);
+    --text:#0e1b14; --muted:#5d6b63; --brand:#21f10a; --accent:#eb7a08;
+    --shadow:0 10px 30px rgba(0,0,0,.15); --radius:14px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --card-bg:rgba(20,26,24,.6); --card-border:rgba(255,255,255,.12);
+      --text:#e8fff3; --muted:#a7b5ae; --shadow:0 12px 28px rgba(0,0,0,.35); }
+  }
+  *{ box-sizing:border-box } html,body{ height:100% }
+  body{
+    margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", sans-serif;
+    color:var(--text);
+    background: radial-gradient(1200px 800px at 50% -10%, var(--bg-start), var(--bg-end));
+    display:flex; flex-direction:column; align-items:center;
+    -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+  }
+  h1{ color:#fff; margin:22px 16px; letter-spacing:.3px; text-shadow:0 1px 2px rgba(0,0,0,.15) }
+  h2{ margin:0 0 10px; font-size:1.15rem; letter-spacing:.2px }
+
+  .block{
+    width:90%; max-width:600px; margin:14px 16px; padding:18px 18px 16px;
+    background:var(--card-bg); border:1px solid var(--card-border);
+    border-radius:var(--radius); box-shadow:var(--shadow);
+    backdrop-filter:saturate(140%) blur(10px);
+  }
+  .temp-value{ font-size:2.5em; color:var(--accent); font-weight:700; letter-spacing:.4px }
+  .status{ margin-top:8px; color:var(--muted) } .muted{ color:var(--muted); font-size:.95em }
+
+  button{
+    margin:10px 6px 10px 0; padding:12px 18px; font-size:1rem; border:none; border-radius:10px; cursor:pointer;
+    background:linear-gradient(180deg, var(--brand), #18c306); color:#073a06; font-weight:600;
+    box-shadow:0 4px 10px rgba(0,0,0,.12), inset 0 1px 0 rgba(255,255,255,.3);
+    transition:transform .12s ease, box-shadow .12s ease, filter .15s ease;
+  }
+  button:hover{ filter:saturate(115%); box-shadow:0 6px 14px rgba(0,0,0,.16); transform:translateY(-1px) }
+  button:active{ transform:translateY(0); box-shadow:0 3px 8px rgba(0,0,0,.18) inset }
+  button:focus-visible{ outline:2px solid #1e90ff; outline-offset:2px }
+
+  .chart-wrap{ width:100%; height:220px; margin-top:12px }
+  canvas{
+    width:100% !important; height:100% !important; display:block;
+    border-radius:12px; background:#f3f5f4; border:1px solid rgba(0,0,0,.06)
+  }
+  @media (prefers-color-scheme: dark){
+    canvas{ background:#0f1513; border-color:rgba(255,255,255,.06) }
+  }
+
+  #logBox, #activityLogBox{
+    background:#0a0f0d; color:#bfffcf; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    padding:12px; height:200px; overflow:auto; font-size:.92em; line-height:1.35;
+    border-radius:12px; border:1px solid rgba(255,255,255,.08); box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+    white-space:pre-wrap; word-break:break-word;
+  }
+  #logBox::-webkit-scrollbar, #activityLogBox::-webkit-scrollbar{ height:10px; width:10px }
+  #logBox::-webkit-scrollbar-thumb, #activityLogBox::-webkit-scrollbar-thumb{
+    background:linear-gradient(180deg,#2b3a34,#1b2722); border-radius:999px; border:2px solid #0a0f0d;
+  }
+  #logBox::-webkit-scrollbar-track, #activityLogBox::-webkit-scrollbar-track{ background:#0a0f0d; border-radius:999px }
+
+  @media (prefers-reduced-motion: reduce){ *{ transition:none !important; animation:none !important } }
+
+  /* BLE animations */
+  .status-dot{
+    display:inline-block; width:10px; height:10px; margin-left:6px; border-radius:50%;
+    background:#9aa6a0; box-shadow:0 0 0 0 rgba(33,241,10,0);
+  }
+  .status-dot.live{ background:#21f10a; animation:ble-ping 1.8s ease-out infinite }
+  #bleBtn.is-connecting{ position:relative; pointer-events:none; filter:saturate(110%) }
+  #bleBtn.is-connecting::after{
+    content:""; position:absolute; right:12px; top:50%; width:16px; height:16px;
+    border-radius:50%; border:2px solid currentColor; border-top-color:transparent;
+    transform:translateY(-50%); animation:spin .8s linear infinite;
+  }
+  #bleBtn.is-connected{ animation:ble-glow 1.8s ease-out infinite; box-shadow:0 0 0 0 rgba(33,241,10,.65) }
+  #bleBtn.is-error{
+    animation:shake .28s linear 0s 2; background:linear-gradient(180deg, #ff9aa0, #ff6b6b); color:#4a0404;
+  }
+  @keyframes spin { to { transform:translateY(-50%) rotate(360deg) } }
+  @keyframes ble-ping { 0%{box-shadow:0 0 0 0 rgba(33,241,10,.55)} 70%{box-shadow:0 0 0 10px rgba(33,241,10,0)} 100%{box-shadow:0 0 0 0 rgba(33,241,10,0)} }
+  @keyframes ble-glow{ 0%{box-shadow:0 0 0 0 rgba(33,241,10,.55)} 70%{box-shadow:0 0 0 12px rgba(33,241,10,0)} 100%{box-shadow:0 0 0 0 rgba(33,241,10,0)} }
+  @keyframes shake{ 0%,100%{transform:translateX(0)} 25%{transform:translateX(-3px)} 75%{transform:translateX(3px)} }
+</style>
+</head>
+<body>
+
+<h1>🛠️ micro:bit Debug + Temp Monitor</h1>
+
+<!-- USB -->
+<div class="block">
+  <h2>🔌 USB (Any Device)</h2>
+  <div id="usb-temp" class="temp-value">-- °C</div>
+  <div id="usb-status" class="status">Disconnected</div>
+  <button onclick="connectUSB()">Connect USB</button>
+  <div class="chart-wrap"><canvas id="usbChart"></canvas></div>
+</div>
+
+<!-- BLE -->
+<div class="block">
+  <h2>📡 BLE (Any Device)</h2>
+  <div id="ble-temp" class="temp-value">-- °C</div>
+  <div id="ble-status" class="status">
+    Disconnected <span id="ble-dot" class="status-dot" aria-hidden="true"></span>
+  </div>
+  <button id="bleBtn" onclick="connectBLE()">Connect BLE</button>
+  <div class="chart-wrap"><canvas id="bleChart"></canvas></div>
+</div>
+
+<!-- Serial Log -->
+<div class="block">
+  <h2>📋 Serial Log</h2>
+  <div id="logBox">[LOG INIT]</div>
+  <button onclick="saveDebugLog()">📥 Save serial Log</button>
+</div>
+
+<!-- Activity Log -->
+<div class="block">
+  <h2>⚙️ Debug Log</h2>
+  <div id="activityLogBox">[ACTIVITY LOG INIT]</div>
+  <button onclick="saveActivityLog()">📥 Save Debug Log</button>
+</div>
+
+<!-- HEX -->
+<div class="block">
+  <h2>⬇️ Download .HEX File</h2>
+  <button onclick="downloadHex()">⬇️ Download HEX</button>
+  <div class="muted">สำหรับทดสอบเท่านั้น—ใส่ไฟล์ .hex จริงของคุณภายหลัง</div>
+</div>
+
+<script>
+/* === Constants === */
+const MAX_POINTS = 50;
+
+/* === Fixed Y ticks: 1–50 step 5 === */
+const Y_TICKS = (() => {
+  const out = [];
+  for (let v = 1; v <= 46; v += 5) out.push(v); // 1,6,11,...,46
+  out.push(50);
+  return out;
+})();
+
+/* === Chart.js v4 plugin: force Y ticks === */
+const ForceYTicksPlugin = {
+  id: 'ForceYTicksPlugin',
+  afterBuildTicks(scale){
+    if (scale.axis !== 'y') return;
+    scale.ticks = Y_TICKS.map(v => ({ value: v }));
+  }
+};
+Chart.register(ForceYTicksPlugin);
+
+/* === Chart Factory === */
+function createChart(canvasId, label){
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  return new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        label,                // legend text
+        data: [],
+        tension: 0.3,
+        pointRadius: 0,
+        borderWidth: 2,
+        borderColor: '#eb7a08',
+        backgroundColor: 'rgba(235,122,8,0.2)'
+      }]
+    },
+    options: {
+      animation: false,
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: { padding: { top: 6 } },
+      plugins: {
+        legend: {
+          display: true,
+          position: 'top',
+          align: 'start',
+          labels: { padding: 8, boxWidth: 12, boxHeight: 8, usePointStyle: false }
+        }
+      },
+      scales: {
+        x: { display:false },
+        y: {
+          min: 1, max: 50,
+          ticks: { callback: v => `${v}°C` },
+          grid: { drawBorder:false }
+        }
+      }
+    }
+  });
+}
+
+/* === Charts === */
+const usbChart = createChart('usbChart', 'USB Temp (°C)');
+const bleChart = createChart('bleChart', 'BLE Temp (°C)');
+
+/* === Logs === */
+let debugLogBuffer = [], activityLogBuffer = [];
+function updateChart(chart,temp){
+  const now = new Date().toLocaleTimeString();
+  chart.data.labels.push(now);
+  chart.data.datasets[0].data.push(temp);
+  if(chart.data.labels.length>MAX_POINTS){
+    chart.data.labels.shift(); chart.data.datasets[0].data.shift();
+  }
+  chart.update();
+}
+function appendDebugLog(msg){
+  const box=document.getElementById('logBox');
+  const line=`[${new Date().toLocaleTimeString()}] ${msg}`;
+  debugLogBuffer.push(line); box.textContent+="\n"+line; box.scrollTop=box.scrollHeight;
+}
+function appendActivityLog(msg){
+  const box=document.getElementById('activityLogBox');
+  const line=`[${new Date().toLocaleTimeString()}] ${msg}`;
+  activityLogBuffer.push(line); box.textContent+="\n"+line; box.scrollTop=box.scrollHeight;
+}
+function saveDebugLog(){
+  const blob=new Blob([debugLogBuffer.join('\n')],{type:'text/plain'});
+  const url=URL.createObjectURL(blob); const a=document.createElement('a');
+  a.href=url; a.download=`debug-log-${new Date().toISOString().replace(/[:.]/g,'-')}.txt`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+  appendActivityLog('[SYSTEM] Debug log saved');
+}
+function saveActivityLog(){
+  const blob=new Blob([activityLogBuffer.join('\n')],{type:'text/plain'});
+  const url=URL.createObjectURL(blob); const a=document.createElement('a');
+  a.href=url; a.download=`activity-log-${new Date().toISOString().replace(/[:.]/g,'-')}.txt`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+  appendActivityLog('[SYSTEM] Activity log saved');
+}
+
+/* === USB === */
+async function connectUSB(){
+  const status=document.getElementById('usb-status');
+  const tempEl=document.getElementById('usb-temp');
+  appendActivityLog('[USB] Requesting port...'); status.textContent='Connecting...';
+  try{
+    const port=await navigator.serial.requestPort();
+    await port.open({baudRate:115200});
+    appendActivityLog('[USB] Port opened'); status.textContent='Connected';
+    const textDecoder=new TextDecoderStream(); port.readable.pipeTo(textDecoder.writable);
+    const reader=textDecoder.readable.getReader();
+    while(true){
+      const {value,done}=await reader.read(); if(done) break;
+      if(value){
+        const v=value.trim(); appendDebugLog('[USB] '+v);
+        if(v.startsWith('USB Temp:')){
+          const t=parseFloat(v.split(':')[1]);
+          if(Number.isFinite(t)){ tempEl.textContent=t.toFixed(2)+' °C'; updateChart(usbChart,t); }
+        }
+        if(v.startsWith('Chip Info:')) appendActivityLog('[USB] '+v);
+      }
+    }
+  }catch(err){
+    status.textContent='Error: '+err.message;
+    appendActivityLog('[USB] ERROR: '+err.message);
+  }
+}
+
+/* === BLE UI Helpers === */
+function setBleUi(state, msg){
+  const btn = document.getElementById('bleBtn');
+  const status = document.getElementById('ble-status');
+  const dot = document.getElementById('ble-dot');
+
+  btn.classList.remove('is-connecting','is-connected','is-error');
+  dot.classList.remove('live');
+
+  switch(state){
+    case 'connecting': btn.classList.add('is-connecting'); status.textContent = msg || 'Connecting...'; break;
+    case 'connected' : btn.classList.add('is-connected');  status.textContent = msg || 'Connected'; dot.classList.add('live'); break;
+    case 'error'     : btn.classList.add('is-error');      status.textContent = msg || 'Error'; break;
+    default          : status.textContent = msg || 'Disconnected';
+  }
+}
+
+/* === BLE === */
+async function connectBLE(){
+  const tempEl=document.getElementById('ble-temp');
+
+  if(!('bluetooth' in navigator)){
+    setBleUi('error','Web Bluetooth not supported');
+    appendActivityLog('[BLE] ERROR: Web Bluetooth not supported on this browser');
+    return;
+  }
+
+  setBleUi('connecting','Connecting...');
+  appendActivityLog('[BLE] Requesting device...');
+
+  try{
+    const device=await navigator.bluetooth.requestDevice({
+      filters:[{ services:['6e400001-b5a3-f393-e0a9-e50e24dcca9e'] }]
+    });
+    appendActivityLog('[BLE] Device selected: '+(device.name||'(no name)'));
+    device.addEventListener('gattserverdisconnected', ()=>{
+      setBleUi('disconnected','Disconnected'); appendActivityLog('[BLE] Disconnected');
+    });
+
+    const server=await device.gatt.connect();
+    const service=await server.getPrimaryService('6e400001-b5a3-f393-e0a9-e50e24dcca9e');
+    const ch=await service.getCharacteristic('6e400003-b5a3-f393-e0a9-e50e24dcca9e');
+    await ch.startNotifications();
+
+    setBleUi('connected','Connected');
+    appendActivityLog('[BLE] Connected and listening');
+
+    let buffer='';
+    ch.addEventListener('characteristicvaluechanged',e=>{
+      const chunk=new TextDecoder().decode(e.target.value); buffer+=chunk;
+      let idx; while((idx=buffer.indexOf('\n'))>=0){
+        const line=buffer.slice(0,idx).replace(/\r+$/,'').trim();
+        buffer=buffer.slice(idx+1); if(!line) continue;
+
+        appendDebugLog('[BLE] '+line);
+
+        if(line.startsWith('BLE Temp:')){
+          const t=parseFloat(line.split(':')[1]);
+          if(Number.isFinite(t)){ tempEl.textContent=t.toFixed(2)+' °C'; updateChart(bleChart,t); }
+        } else if(line.startsWith('Chip Info:')){
+          appendActivityLog('[BLE] '+line);
+        }
+      }
+    });
+
+  }catch(err){
+    setBleUi('error','Error: '+err.message);
+    appendActivityLog('[BLE] ERROR: '+err.message);
+  }
+}
+
+/* === HEX (mock) === */
+function downloadHex(){
+  const hexContent=`:020000040000FA
+:0400000A9900C0DEBB
+:20000000C0070000D1060000D1000000B10600000000000000000000000000000000000`;
+  const blob=new Blob([hexContent],{type:'application/octet-stream'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='microbit-program.hex';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+  appendActivityLog('[SYSTEM] HEX file downloaded');
+}
+</script>
+</body>
+</html>
