@@ -1,66 +1,65 @@
-// เมื่อ Bluetooth เชื่อมต่อ
 bluetooth.onBluetoothConnected(function () {
-    bleActive = true
-    // ปิด USB ถ้า BLE เชื่อมต่อ
-    usbActive = false
-    basic.showIcon(IconNames.SmallSquare)
-    serial.writeLine("[BLE] Connected")
+    setRoute(Route.BLE)
 })
-// เมื่อ Bluetooth ตัดการเชื่อมต่อ
 bluetooth.onBluetoothDisconnected(function () {
-    bleActive = false
-    basic.showIcon(IconNames.Square)
-    serial.writeLine("[BLE] Disconnected")
+    setRoute(Route.USB)
 })
-// เมื่อมีข้อมูล Bluetooth UART เข้ามา
+input.onButtonPressed(Button.A, function () {
+    sn = control.deviceSerialNumber()
+    writeLineActive("Chip Info: micro:bit SN=" + sn)
+})
 bluetooth.onUartDataReceived(serial.delimiters(Delimiters.NewLine), function () {
-    if (bleActive) {
-        received = bluetooth.uartReadUntil(serial.delimiters(Delimiters.NewLine))
-        serial.writeLine("[BLE RX] " + received)
-        basic.showIcon(IconNames.Heart)
-    }
+    rx = bluetooth.uartReadUntil(serial.delimiters(Delimiters.NewLine))
+    setRoute(Route.BLE)
+bluetooth.uartWriteLine("[RX] " + rx)
 })
-// ตรวจสอบ USB ว่ามีการอ่านข้อมูลเข้ามาหรือไม่
 serial.onDataReceived(serial.delimiters(Delimiters.NewLine), function () {
-    usbActive = true
-    // ปิด BLE ถ้า USB ถูกใช้งาน
-    bleActive = false
+    setRoute(Route.USB)
 })
-let temp = 0
-let received = ""
-let usbActive = false
-let bleActive = false
-// เริ่มใช้งาน Bluetooth UART
-bluetooth.startUartService()
-// ตั้งค่า Serial USB สำหรับเชื่อมกับคอมพิวเตอร์
-serial.setBaudRate(BaudRate.BaudRate115200)
-// Loop หลัก: ส่งค่าอุณหภูมิ
-basic.forever(function () {
-    temp = input.temperature()
-    // ส่งเฉพาะช่องทางที่ active
-    if (usbActive) {
-        serial.writeLine("USB Temp:" + temp)
-    } else if (bleActive) {
-        bluetooth.uartWriteLine("BLE Temp:" + temp)
-    }
-    // แสดง LED ตามอุณหภูมิ
-    if (temp <= 25) {
-        basic.showLeds(`
-            . . . . .
-            . . . . #
-            . . . # .
-            # . # . .
-            . # . . .
-            `)
+function writeLineActive (msg: string) {
+    if (currentRoute == Route.USB) {
+        serial.writeLine(msg)
     } else {
-        basic.showLeds(`
-            # . . . #
-            . # . # .
-            . . # . .
-            . # . # .
-            # . . . #
-            `)
+        bluetooth.uartWriteLine(msg)
     }
-    // ส่งทุก 1 วินาที
-    basic.pause(1000)
+}
+let rx = ""
+let sn = 0
+enum Route { USB, BLE }
+let currentRoute = Route.USB
+bluetooth.startUartService()
+bluetooth.startTemperatureService()
+serial.setBaudRate(BaudRate.BaudRate115200)
+function setRoute(r: Route) {
+    if (currentRoute == r) return
+        currentRoute = r
+                if (currentRoute == Route.USB) {
+                        serial.writeLine("[MODE] USB active; BLE muted")
+                            } else {
+                                    bluetooth.uartWriteLine("[MODE] BLE active; USB muted")
+                                        }
+                                        }
+basic.forever(function () {
+    if (currentRoute == Route.USB) {
+        serial.writeLine("USB Temp:" + input.temperature())
+    } else {
+        bluetooth.uartWriteLine("BLE Temp:" + input.temperature())
+    }
+    if (input.temperature() < 24) {
+        basic.showIcon(IconNames.Happy)
+    } else if (input.temperature() >= 28) {
+        basic.showIcon(IconNames.Sad)
+    }
+    basic.pause(100)
+})
+basic.forever(function () {
+    if (input.temperature() == 25) {
+        basic.showIcon(IconNames.SmallSquare)
+    }
+    if (input.temperature() == 26) {
+        basic.showIcon(IconNames.SmallSquare)
+    }
+    if (input.temperature() == 27) {
+        basic.showIcon(IconNames.SmallSquare)
+    }
 })
