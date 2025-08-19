@@ -2,7 +2,7 @@
 ```
 step1
 
-go to https://makecode.microbit.org/S67373-98789-32942-07158
+go to https://makecode.microbit.org/S01718-13125-00987-53592
 ```
 https://makecode.microbit.org/S01718-13125-00987-53592
 
