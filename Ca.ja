@@ -1,0 +1,58 @@
+radio.setGroup(55)
+
+radio.onReceivedString(function (cmd) {
+
+    // ===========================
+    //      2 WHEEL TANK DRIVE
+    // ===========================
+
+    if (cmd == "F") {      // Forward
+        pins.servoWritePin(AnalogPin.P0, 100)  // Left track
+        pins.servoWritePin(AnalogPin.P1, 100)  // Right track
+    }
+
+    else if (cmd == "B") { // Backward
+        pins.servoWritePin(AnalogPin.P0, 80)
+        pins.servoWritePin(AnalogPin.P1, 80)
+    }
+
+    else if (cmd == "L") { // Turn Left
+        pins.servoWritePin(AnalogPin.P0, 80)   // Left backward
+        pins.servoWritePin(AnalogPin.P1, 100)  // Right forward
+    }
+
+    else if (cmd == "R") { // Turn Right
+        pins.servoWritePin(AnalogPin.P0, 100)  // Left forward
+        pins.servoWritePin(AnalogPin.P1, 80)   // Right backward
+    }
+
+    else if (cmd == "S") { // Stop
+        pins.servoWritePin(AnalogPin.P0, 90)
+        pins.servoWritePin(AnalogPin.P1, 90)
+    }
+
+
+    // ===========================
+    //        LIFT MOTOR
+    // ===========================
+    else if (cmd == "UP") {
+        pins.servoWritePin(AnalogPin.P12, 120)
+    }
+
+    else if (cmd == "DOWN") {
+        pins.servoWritePin(AnalogPin.P12, 60)
+    }
+
+
+    // ===========================
+    //        CLAW SERVO
+    // ===========================
+    else if (cmd == "OPEN") {
+        pins.servoWritePin(AnalogPin.P13, 120)
+    }
+
+    else if (cmd == "CLOSE") {
+        pins.servoWritePin(AnalogPin.P13, 60)
+    }
+
+})
